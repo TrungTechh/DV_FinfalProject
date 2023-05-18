@@ -375,7 +375,7 @@ def predict_lifeExpectancy():
 def most_influence():
     st.markdown('## What factors influence life expectancy the most?')
     feature_index = ["HIV/AIDS", "Adult Mortality", "Income composition of resources", "Schooling", "thinness 5-9 years"]
-    feature_value = [0.379045, 0.280811, 0.209,0.030993, 0.016]
+    feature_value = [0.529923, 0.211056, 0.163982,0.029546]
 
 
     fig = plt.figure(figsize=(10, 4))
@@ -392,8 +392,6 @@ def most_influence():
         st.markdown("- Care in take care of adults")
         st.markdown("- Optimal utilization of available resources")
         st.markdown("- Invest in education")
-        st.markdown("- Focus on nutrition for children 5 - 9 years")
-
 
 # Does the higher the GDP, the longer the life expectancy of the country will increase?
 def higherGDP_longerLE():
