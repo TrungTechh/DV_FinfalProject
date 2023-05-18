@@ -1,15 +1,28 @@
 import streamlit as st
-import numpy as np
 import pandas as pd
-import seaborn as sns
+import numpy as np
+import math
 import matplotlib.pyplot as plt
+import matplotlib as mpl
+import seaborn as sns
+
+import pandas as pd
+import numpy as np
+from scipy import signal
+
+from statsmodels.tsa.ar_model import AutoReg
+from statsmodels.tsa.stattools import adfuller
+from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
+from statsmodels.stats.stattools import durbin_watson
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import mean_squared_error
+from sklearn.impute import SimpleImputer
 
 from sklearn.linear_model import LinearRegression
 from sklearn.compose import make_column_transformer
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from sklearn.impute import SimpleImputer
 from sklearn.pipeline import Pipeline, make_pipeline
-from sklearn.metrics import mean_squared_error
 
 
 
@@ -264,7 +277,32 @@ def multivariate_analysis():
 #-------------time-series analysis--------------
 def timeseries_analysis():
     st.markdown('## Time - series analysis')
+    st.markdown('### Are life expectancy stationary?')
 
+    df = pd.read_csv('LE_cleaned_data.csv')
+    df['Year'] = pd.to_datetime(df['Year'], format='%Y')
+
+    time = df.pivot(index='Year', columns='Country', values='Life expectancy')
+    vn = time['Viet Nam']
+    vn.plot(kind='line', figsize=(10, 5));
+    st.line_chart(vn)
+
+    test = vn.reset_index()
+    df_station = adfuller(test['Viet Nam'], autolag='AIC')
+    st.markdown('Hypothesis Testing by using p-value. \
+                If p-value is less than $alpha = 0.05$, we can reject the null hypothesis \
+                that the time series is non-stationary.')
+    st.text('P-value: ' + str(df_station[1]))
+    st.markdown('We calculated p-value = 0.5 > 0.05, \
+                then we reject H1 and conclude that the time series is non-stationary (accept H0).')
+    time = time.T
+    world = time.describe().round(2)
+    world = world.loc[world.index == 'mean']
+    world = world.T.rename({'mean': 'World'}, axis=1)
+    merged = world.reset_index().merge(vn.reset_index(),left_on = 'Year', right_on = 'Year', how = 'inner')
+    merged.set_index('Year', inplace=True)
+    # merged.plot(kind='line', figsize=(20, 10), title='World and Viet Nam Life Expectancy');
+    st.line_chart(merged)
 
 def data_exploration():
     st.markdown('# Data exploration')
@@ -390,5 +428,6 @@ with open('style.css') as f:
 read_data()
 descriptive_statistic()
 data_exploration()
+timeseries_analysis()
 regression_analysis()
 solution()
