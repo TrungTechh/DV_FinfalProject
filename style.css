@@ -1,0 +1,12 @@
+h2 {
+    background-color: #EEEEEE;
+    border: 1px solid #DCDCDC;
+    padding: 0% 1%;
+    border-radius: 10px;
+}
+
+[data-testid="stVerticalBlock"] > [style*="flex-direction: column;"] > [data-testid="stVerticalBlock"] {
+    background-color: #DEDCB3;
+    border: 1px solid #DCDCDC;
+    border-radius: 5px;
+}
