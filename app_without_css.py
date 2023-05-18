@@ -1,4 +1,6 @@
 import streamlit as st
+import streamlit.components.v1 as components
+import mpld3
 import pandas as pd
 import numpy as np
 import math
@@ -284,8 +286,11 @@ def timeseries_analysis():
 
     time = df.pivot(index='Year', columns='Country', values='Life expectancy')
     vn = time['Viet Nam']
-    vn.plot(kind='line', figsize=(10, 5));
-    st.line_chart(vn)
+    fig = plt.figure()
+    plt.plot(vn, label='Viet Nam');
+    # st.pyplot(fig)
+    fig_html = mpld3.fig_to_html(fig)
+    components.html(fig_html, height=600)
 
     test = vn.reset_index()
     df_station = adfuller(test['Viet Nam'], autolag='AIC')
@@ -301,8 +306,11 @@ def timeseries_analysis():
     world = world.T.rename({'mean': 'World'}, axis=1)
     merged = world.reset_index().merge(vn.reset_index(),left_on = 'Year', right_on = 'Year', how = 'inner')
     merged.set_index('Year', inplace=True)
-    # merged.plot(kind='line', figsize=(20, 10), title='World and Viet Nam Life Expectancy');
-    st.line_chart(merged)
+    fig = plt.figure()
+    plt.plot(merged.index, merged['Viet Nam'], label='Viet Nam');
+    plt.plot(merged.index, merged['World'], label='World');
+    fig_html = mpld3.fig_to_html(fig)
+    components.html(fig_html, height=600)
 
 def data_exploration():
     st.markdown('# Data exploration')
