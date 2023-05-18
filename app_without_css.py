@@ -262,7 +262,8 @@ def multivariate_analysis():
 #-------------time-series analysis--------------
 def timeseries_analysis():
     st.markdown('## Time - series analysis')
-
+    st.markdown('### Are life expectancy stationary?')
+    
 
 def data_exploration():
     st.markdown('# Data exploration')
