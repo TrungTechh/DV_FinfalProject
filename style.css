@@ -5,8 +5,23 @@ h2 {
     border-radius: 10px;
 }
 
+.block-container{
+    width: 70%;
+}
+
+.css-1kyxreq{
+    display: flex;
+    justify-content: center;
+    width: 320px;
+}
+
 [data-testid="stVerticalBlock"] > [style*="flex-direction: column;"] > [data-testid="stVerticalBlock"] {
     background-color: #DEDCB3;
     border: 1px solid #DCDCDC;
     border-radius: 5px;
 }
+
+/* .css-1v0mbdj img{
+    width: 320px!important;
+} */
+

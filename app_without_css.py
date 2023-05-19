@@ -5,6 +5,8 @@ import math
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 import seaborn as sns
+import mpld3
+import streamlit.components.v1 as components
 
 import pandas as pd
 import numpy as np
@@ -131,9 +133,10 @@ def univariate_status():
     ded_ding = pd.pivot_table(df, index='Status', columns='Year', aggfunc='size')
     st.write(ded_ding)
 
-    fig = plt.figure()
-    plt.pie(ded_ding[2000], labels=ded_ding.index.tolist(), explode=[0, 0.1], autopct='%0.0f%%')
-    plt.title("Percent developing vs developed countries")
+    fig,ax = plt.subplots(figsize=(3, 3))
+    ax.pie(ded_ding[2000], labels=ded_ding.index.tolist(), explode=[0, 0.1], autopct='%0.0f%%')
+    ax.set_title("Percent developing vs developed countries",fontsize=8)
+
     st.pyplot(fig)
 
     comment = '''
@@ -374,7 +377,7 @@ def predict_lifeExpectancy():
 # What factors influence life expectancy the most
 def most_influence():
     st.markdown('## What factors influence life expectancy the most?')
-    feature_index = ["HIV/AIDS", "Adult Mortality", "Income composition of resources", "Schooling", "thinness 5-9 years"]
+    feature_index = ["HIV/AIDS", "Adult Mortality", "Income composition of resources", "Schooling"]
     feature_value = [0.529923, 0.211056, 0.163982,0.029546]
 
 
