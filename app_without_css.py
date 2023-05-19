@@ -1,12 +1,12 @@
 import streamlit as st
+import streamlit.components.v1 as components
+import mpld3
 import pandas as pd
 import numpy as np
 import math
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 import seaborn as sns
-import mpld3
-import streamlit.components.v1 as components
 
 import pandas as pd
 import numpy as np
@@ -32,7 +32,20 @@ from sklearn.pipeline import Pipeline, make_pipeline
 df = pd.read_csv('Life_Expectancy_Data.csv')
 years = pd.unique(df.Year)
 
+# Handle missing value
+# List of columns to impute
+cols_to_impute = ['Life expectancy', 'Adult Mortality', 'Alcohol',
+                  'Hepatitis B', 'BMI', 'Polio', 'Total expenditure',
+                  'Diphtheria', 'GDP', 'Population', 'thinness 1-19 years',
+                  'thinness 5-9 years', 'Income composition of resources',
+                  'Schooling']
+
+# Loop over columns and impute missing values with the mean of the same year
+for col in cols_to_impute:
+    df[col] = df.groupby('Year')[col].transform(lambda x: x.fillna(x.mean()))
+
 def read_data():
+
     # I. Read data
     st.markdown('# Read the data')
 
@@ -53,30 +66,31 @@ def read_data():
     data_description = '''
     #### Feature information
 
-    | Heeader name                    | Description |
-    | ------------------------------- | ----------- |
-    | Country                         |             |
-    | Year                            |             |
-    | Status                          |             |
-    | Life expectancy                 |             |
-    | Adult Mortality                 |             |
-    | infant deaths                   |             |
-    | Alcohol                         |             |
-    | percentage expenditure          |             |
-    | Hepatitis B                     |             |
-    | Measles                         |             |
-    | BMI                             |             |
-    | under-five deaths               |             |
-    | Polio                           |             |
-    | Total expenditure               |             |
-    | Diphtheria                      |             |
-    | HIV/AIDS                        |             |
-    | GDP                             |             |
-    | Population                      |             |
-    | thinness 1-19 years             |             |
-    | thinness 5-9 years              |             |
-    | Income composition of resources |             |
-    | Schooling                       |             |
+    | Heeader name                    | Description                                                              |
+    | ------------------------------- | -------------------------------------------------------------------------|
+    | Country                         | 193 countries in around the world                                        |
+    | Year                            | From 2000 to 2015                                                        |
+    | Status                          | Developed or Developing status                                           |
+    | Life expectancy                 | Life Expectancy in age                                                   |
+    | Adult Mortality                 | Adult Mortality Rates of both sexes (probability of dying between 15 and 60 years per 1000 population)                                     |
+    | infant deaths                   | Number of Infant Deaths per 1000 population                              |
+    | Alcohol                         | Alcohol, recorded per capita (15+) consumption (in litres of pure alcohol)                           |
+    | percentage expenditure          | Expenditure on health of Gross Domestic Product per capita(%)            |
+    | Hepatitis B                     | Hepatitis B (HepB) immunization coverage among 1-year-olds(%)           |
+    | Measles                         | Measles - number of reported cases per 1000 population                   |
+    | BMI                             | Average Body Mass Index of entire population                             |
+    | under-five deaths               | Number of under-five deaths per 1000 population                          |
+    | Polio                           | Polio (Pol3) immunization coverage among 1-year-olds (%)                 |
+    | Total expenditure               | General government expenditure on health as total (%)                    |
+    | Diphtheria                      | Diphtheria tetanus toxoid and pertussis immunization coverage among 1-year-olds (%)        |
+    | HIV/AIDS                        | Deaths per 1 000 live births HIV/AIDS (0-4 years)                        |
+    | GDP                             | Gross Domestic Product per capita (in USD)                               |
+    | Population                      | Population of the country                                                |
+    | thinness 1-19 years             | Prevalence of thinness among children and adolescents 10 to 19 Age (%)   |
+    | thinness 5-9 years              | Prevalence of thinness among children for Age 5 to 9(%)                  |
+    | Income composition of resources | Human Development Index of income composition of resources (0 to 1)              |
+    | Schooling                       | Number of years of Schooling(years)                                      |
+
     '''
     st.markdown(data_description)
 
@@ -133,10 +147,9 @@ def univariate_status():
     ded_ding = pd.pivot_table(df, index='Status', columns='Year', aggfunc='size')
     st.write(ded_ding)
 
-    fig,ax = plt.subplots(figsize=(3, 3))
-    ax.pie(ded_ding[2000], labels=ded_ding.index.tolist(), explode=[0, 0.1], autopct='%0.0f%%')
-    ax.set_title("Percent developing vs developed countries",fontsize=8)
-
+    fig = plt.figure()
+    plt.pie(ded_ding[2000], labels=ded_ding.index.tolist(), explode=[0, 0.1], autopct='%0.0f%%')
+    plt.title("Percent developing vs developed countries")
     st.pyplot(fig)
 
     comment = '''
@@ -274,21 +287,153 @@ def univariate_analysis():
     univariate_bmi()
 
 #-------------multivariate analysis-------------
+def plot1(df_life, features, title='Features', columns=2, x_lim=None):
+    rows = math.ceil(len(features) / 2)
+    fig, ax = plt.subplots(rows, columns, sharey=True, figsize=(25, 20))
+    for i, feature in enumerate(features):
+        ax = plt.subplot(rows, columns, i + 1)
+        sns.regplot(data=df_life, x=feature, y='Life expectancy', scatter_kws={'s': 60, 'edgecolor': 'k'},
+                    line_kws={'color': 'red'}, ax=ax)
+        ax.set_title('Life Expectancy vs ' + feature)
+        
+    fig.suptitle('{} x Life Expectancy'.format(title), fontsize=25, x=0.56)
+    fig.tight_layout(rect=[0.05, 0.03, 1, 1])
+    st.pyplot(fig)
+
+# Function to plot scatter plots with regression lines but usse log scale 
+def plot2(df_life, features, title='Features', columns=2, x_lim=None):
+    rows = math.ceil(len(features) / 2)
+    fig, ax = plt.subplots(rows, columns, sharey=True, figsize=(25, 20))
+    
+    for i, feature in enumerate(features):
+        ax = plt.subplot(rows, columns, i + 1)
+        log_feature = np.log1p(df_life[feature])
+        sns.regplot(data=df_life, x=log_feature, y='Life expectancy', scatter_kws={'s': 60, 'edgecolor': 'k'},
+                    line_kws={'color': 'red'}, ax=ax)
+        ax.set_title('Life Expectancy vs log(' + feature + ')')
+        
+    fig.suptitle('{} x Life Expectancy'.format(title), fontsize=25, x=0.56)
+    fig.tight_layout(rect=[0.05, 0.03, 1, 1])
+    st.pyplot(fig)
+
+#Function to plot scatter plots
+def plot_scatterplot(df_life, features, title = 'Features', columns = 2, x_lim=None):
+    
+    rows = math.ceil(len(features)/2)
+
+    fig, ax = plt.subplots(rows, columns, sharey = True, figsize=(25, 20))
+    
+    for i, feature in enumerate(features):
+        ax = plt.subplot(rows, columns, i+1)
+        sns.scatterplot(data = df_life,
+                        x = feature,
+                        y = 'Life expectancy',
+                        hue = 'Status',
+                        palette=['#669bbc', '#c1121f'],
+                        ax = ax)
+        
+    fig.legend(*ax.get_legend_handles_labels(), 
+               loc='lower center', 
+               bbox_to_anchor=(1.04, 0.5),
+               fontsize='small')
+    fig.suptitle('{} x Life Expectancy'.format(title), 
+                 fontsize = 25, 
+                 x = 0.56);
+
+    fig.tight_layout(rect=[0.05, 0.03, 1, 1])
+    st.pyplot(fig)
+
 def multivariate_analysis():
     st.markdown('## Multivariate analysis')
+    df_life = df.copy()
+    columns_name_fixed = []
+
+    for column in df.columns:
+        if column == ' thinness  1-19 years':
+            column = 'Thinness 1-19 years'
+        else:
+            column = column.strip(' ').replace("  ", " ")
+            column = column[:1].upper() + column[1:]
+        columns_name_fixed.append(column)
+    df_life.columns = columns_name_fixed
+
+    st.markdown('### The relationships of the life expectancy with the other independent variables')
+    
+    # List of positively correlated features with life expectancy
+    pos_correlated_features = ['Income composition of resources', 'Schooling', 'GDP', 'Total expenditure', 
+                            'BMI', 'Diphtheria']
+    # Plot scatter plots with regression lines for positively correlated features
+    plot1(df_life, pos_correlated_features, title='Positively Correlated Features')
+    # List of negatively correlated features with life expectancy
+    neg_correlated_features = ['Adult Mortality', 'HIV/AIDS', 
+                                'Thinness 1-19 years', 'Infant deaths']
+    # Plot scatter plots with regression lines for nagatively correlated features
+    plot1(df_life, neg_correlated_features, title='Negatively Correlated Features')
+    #Check other correlations
+    features = ['Population', 'Alcohol']
+    plot1(df_life, features)
+
+    # List of positively correlated features with life expectancy
+    positively_correlated_features = ['Income composition of resources', 'Schooling', 'GDP', 'Total expenditure', 
+                            'BMI', 'Diphtheria']
+    # Plot scatter plots with regression lines for the logarithm of positively correlated features
+    plot2(df_life, positively_correlated_features, title='Positively Correlated Features (log scale)')
+    # List of negatively correlated features with life expectancy
+    neg_correlated_features = ['Adult Mortality', 'HIV/AIDS', 
+                                'Thinness 1-19 years', 'Infant deaths']
+    # Plot scatter plots with regression lines for the logarithm of negatively correlated features
+    plot2(df_life, neg_correlated_features, title='Negatively Correlated Features (log scale)')
+    #Check other correlations
+    features = ['Population', 'Alcohol']
+    plot2(df_life, features, title='Other Features (log scale)')
+
+    st.markdown('### The relationships of the life expectancy point with the other independent variables group by country status')
+
+    #Plot Life Expectancy x positively correlated features
+    pos_correlated_features = ['Income composition of resources', 'Schooling', 
+                            'GDP', 'Total expenditure', 
+                            'BMI', 'Diphtheria']
+    title = 'Positively correlated features'
+    plot_scatterplot(df_life, pos_correlated_features, title)
+    #Plot Life Expectancy x negatively correlated features
+    neg_correlated_features = ['Adult Mortality', 'HIV/AIDS', 
+                            'Thinness 1-19 years', 'Infant deaths']
+    title = 'Negatively correlated features'
+    plot_scatterplot(df_life, neg_correlated_features, title)
+    #Check other correlations
+    df_temp = df_life.loc[df_life['Population'] <= 1*1e7, :] 
+    features = ['Population', 'Alcohol']
+    plot_scatterplot(df_temp, features)
+    st.markdown('''
+    #### Conclusions:
+        - It seems that the absolute number of a country's population does not have a direct relationship with life expectancy. Perhaps a more interesting variable would be population density, which can provide more clues about the country's social and geographical conditions.
+        - Another interesting point is that countries with the highest alcohol consumption also have the highest life expectancies. However, this seems to be the classic case for using the maxim 'Correlation does not imply causation'. The life expectancy of someone who owns a Ferrari is possibly higher than that of the rest of the population, but that does not mean that buying a Ferrari will increase their life expectancy. The same applies to alcohol. One hypothesis is that in developed countries, the population's average has better financial conditions, allowing for greater consumption of luxury goods such as alcohol.
+        - After checking the relationships of the dependent variable with the independent variables, it is important to analyze the distribution of these variables. Through them, it is possible to have the first clues if there are outliers in the dataset.    
+    ''')
+
 
 #-------------time-series analysis--------------
 def timeseries_analysis():
     st.markdown('## Time - series analysis')
+    
+    #-----------------Stationarity-----------------
     st.markdown('### Are life expectancy stationary?')
-
     df = pd.read_csv('LE_cleaned_data.csv')
     df['Year'] = pd.to_datetime(df['Year'], format='%Y')
 
     time = df.pivot(index='Year', columns='Country', values='Life expectancy')
+    global vn
     vn = time['Viet Nam']
-    vn.plot(kind='line', figsize=(10, 5));
-    st.line_chart(vn)
+    sns.set_style('white')
+    fig = plt.figure()
+    plt.plot(vn, label='Viet Nam');
+    plt.title('Life expectancy of Viet Nam')
+    plt.xlabel('Year')
+    plt.ylabel('Life expectancy')
+
+    # st.pyplot(fig)
+    fig_html = mpld3.fig_to_html(fig)
+    components.html(fig_html, height=600)
 
     test = vn.reset_index()
     df_station = adfuller(test['Viet Nam'], autolag='AIC')
@@ -298,14 +443,68 @@ def timeseries_analysis():
     st.text('P-value: ' + str(df_station[1]))
     st.markdown('We calculated p-value = 0.5 > 0.05, \
                 then we reject H1 and conclude that the time series is non-stationary (accept H0).')
+
     time = time.T
+    global world
     world = time.describe().round(2)
     world = world.loc[world.index == 'mean']
     world = world.T.rename({'mean': 'World'}, axis=1)
     merged = world.reset_index().merge(vn.reset_index(),left_on = 'Year', right_on = 'Year', how = 'inner')
     merged.set_index('Year', inplace=True)
-    # merged.plot(kind='line', figsize=(20, 10), title='World and Viet Nam Life Expectancy');
-    st.line_chart(merged)
+
+    fig = plt.figure()
+    plt.plot(merged.index, merged['Viet Nam'], label='Viet Nam');
+    plt.plot(merged.index, merged['World'], label='World');
+    plt.title('Life expectancy of Viet Nam and World')
+    plt.xlabel('Year')
+    plt.ylabel('Life expectancy')
+    plt.legend()
+    fig_html = mpld3.fig_to_html(fig)
+    components.html(fig_html, height=600)
+
+    st.markdown('''
+        Conclusion:
+            - Life Expectancy tends to increase over time.
+            - This time-series data is non-stationary.
+        ### Cyclical Analysis
+        Is the time-series data cyclical? Let us explore first with autocorrelation by ACF and PACF visualization.''')
+    
+    #-----------------Cyclical-----------------
+    fig, ax = plt.subplots()
+    acf_cal = world.reset_index().rename(columns={'World':'Life Expectancy'})
+    # mpl.rc("figure")
+    plot_acf(acf_cal["Life Expectancy"], lags = 15, ax=ax);
+    st.pyplot(fig)
+
+    fig,ax = plt.subplots()
+    plot_pacf(acf_cal["Life Expectancy"], lags = 7, method='ywm', ax=ax);
+    st.pyplot(fig)
+    st.markdown('''Durbin-Watson hypothesis test for autocorrelation, which can be a value belonged to these ranges:
+        - $0 < val < 1$: the data has positive autocorrelation.
+        - $1< val <3$: the data has no autocorrelation.
+        - $3 < val < 4$: the data has negative autocorrelation.''')
+    st.text('Durbin-Watson: ' + str(durbin_watson(acf_cal["Life Expectancy"])))
+    st.markdown('''Conclusion:
+        - Life expectancy has positive autocorrelation.
+        - Life expectancy within this dataset is not cyclical.
+        ### Detrending''')
+    
+    #-----------------Detrending-----------------
+    temp = world.reset_index().rename(columns={'World':'Life Expectancy'})
+    detr = signal.detrend(temp['Life Expectancy'])
+    detr = pd.DataFrame({'LE detrend':detr},index = world.index)
+
+    temp.set_index('Year', inplace=True)
+    fig = plt.figure()
+    plt.plot(temp["Life Expectancy"], label=temp.columns[0])
+    plt.plot(detr, label=detr.columns[0])
+    plt.xticks(rotation=45)
+    plt.xlabel("Time", fontsize=12)
+    plt.ylabel("Life Expentancy", fontsize=12)
+    plt.legend(fontsize=12)
+    plt.title("Life Expectancy from 2000 to 2015", fontsize=18)
+    fig_html = mpld3.fig_to_html(fig)
+    components.html(fig_html, height=600)
 
 def data_exploration():
     st.markdown('# Data exploration')
@@ -322,7 +521,172 @@ def data_exploration():
 
     univariate_analysis()
 
+def compare_vn_world(df_life):
+    st.markdown('## Comparation of Life Expectancy between Viet Nam and the World ')
+    st.markdown('### The mean life expectancy of Vietnam with the global average')
+
+    # Calculate mean life expectancy for Vietnam and global
+    global_mean_life_expectancy = df_life["Life expectancy"].mean()
+    vietnam_mean_life_expectancy = df_life[df_life["Country"] == "Viet Nam"]["Life expectancy"].mean()
+
+    # Create a bar plot with customized colors
+    fig = plt.figure()
+    plt.bar(["Global", "Vietnam"], [global_mean_life_expectancy, vietnam_mean_life_expectancy], color=["green", "red"])
+    plt.title("Mean Life Expectancy: Global vs Vietnam")
+    plt.xlabel("Country")
+    plt.ylabel("Mean Life Expectancy")
+    st.pyplot(fig)
+
+    st.markdown('### The life expectancy ranking of Vietnam each year ')
+
+    # Filter the data from the year 2000 onwards
+    df_from_2000 = df_life[df_life['Year'] >= 2000]
+
+    # Create an empty DataFrame to store the rankings
+    df_ranking = pd.DataFrame(columns=['Year', 'Rank'])
+
+    # Iterate over each year
+    for year in df_from_2000['Year'].unique():
+        df_year = df_from_2000[df_from_2000['Year'] == year]
+        df_year_sorted = df_year.sort_values('Life expectancy', ascending=False)
+        df_year_sorted.reset_index(drop=True, inplace=True)
+        df_year_sorted.index = df_year_sorted.index + 1
+        vietnam_rank = df_year_sorted[df_year_sorted['Country'] == 'Viet Nam'].index[0]
+        df_ranking = pd.concat([df_ranking, pd.DataFrame({'Year': year, 'Rank': vietnam_rank},index=[0])], ignore_index=True)
+
+        #df_ranking = df_ranking.append({'Year': year, 'Rank': vietnam_rank}, ignore_index=True)
+
+    # Plot the ranking of Vietnam over the years
+    fig = plt.figure()
+    plt.plot(df_ranking['Year'], df_ranking['Rank'], marker='o')
+    plt.title('Ranking of Vietnam in Life Expectancy')
+    plt.xlabel('Year')
+    plt.ylabel('Rank')
+    plt.grid(True)
+    st.pyplot(fig)
+
+    st.markdown('### Compare the life expectancy of Vietnam with the top 5 countries with the highest life expectancy')
+
+    df_avg_life_expectancy = df_life.groupby('Country')['Life expectancy'].mean().reset_index()
+    df_avg_life_expectancy = df_avg_life_expectancy.sort_values('Life expectancy', ascending=False)
+    top_5_countries = df_avg_life_expectancy.head(5)['Country'].tolist()
+    selected_countries = ['Viet Nam'] + top_5_countries
+    df_comparison = df_life[df_life['Country'].isin(selected_countries)]
+    fig = plt.figure()
+    sns.lineplot(data=df_comparison, x='Year', y='Life expectancy', hue='Country', marker='o')
+    plt.title('Comparison of Life Expectancy: Vietnam vs Top 5 Countries')
+    plt.xlabel('Year')
+    plt.ylabel('Life Expectancy')
+    plt.legend(loc='center left', bbox_to_anchor=(1, .5))
+    st.pyplot(fig)
+
+    st.markdown('### The life expectancy of Vietnam and Southeast Asian countries in the most recent 5 years')
+
+    # Filter the data for Southeast Asian countries and the most recent 5 years
+    southeast_asian_countries = ['Viet Nam', 'Thailand', 'Indonesia', 'Philippines', 'Malaysia', 'Singapore', 'Cambodia', 'Myanmar', 'Laos']
+    df_southeast_asia = df_life[df_life['Country'].isin(southeast_asian_countries)]
+    recent_years = df_southeast_asia['Year'].max() - 4
+    df_recent = df_southeast_asia[df_southeast_asia['Year'] >= recent_years]
+
+    # Plot the life expectancy of Vietnam and Southeast Asian countries in the most recent 5 years
+    fig = plt.figure()
+    plt.plot(df_recent[df_recent['Country'] == 'Viet Nam']['Year'], df_recent[df_recent['Country'] == 'Viet Nam']['Life expectancy'], marker='o', label='Vietnam')
+    for country in southeast_asian_countries:
+        if country != 'Viet Nam':
+            plt.plot(df_recent[df_recent['Country'] == country]['Year'], df_recent[df_recent['Country'] == country]['Life expectancy'], marker = 'o', label=country)
+    plt.title("Life Expectancy Comparison: Vietnam vs Southeast Asian Countries")
+    plt.xlabel("Year")
+    plt.ylabel("Life Expectancy")
+    plt.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+    plt.grid(True)
+    st.pyplot(fig)
+
+    st.markdown('### The life expectancy rankings of Vietnam and other countries in Southeast Asia in 2015')
+
+    # Filter the data for Southeast Asian countries in the year 2015
+    df_sea_2015 = df_life[(df_life['Country'].isin(southeast_asian_countries)) & (df_life['Year'] == 2015)]
+    # Sort the data by life expectancy in descending order
+    df_sea_2015_sorted = df_sea_2015.sort_values('Life expectancy', ascending=False)
+    # Get the rank of Vietnam in 2015
+    vietnam_rank = df_sea_2015_sorted[df_sea_2015_sorted['Country'] == 'Viet Nam'].index[0] + 1
+    # Create a bar plot for life expectancy rankings in Southeast Asia (2015)
+    fig = plt.figure()
+    sns.set_style('whitegrid')
+    plt.bar(df_sea_2015_sorted['Country'], df_sea_2015_sorted['Life expectancy'], color=['blue' if country != 'Viet Nam' else 'red' for country in df_sea_2015_sorted['Country']])
+    plt.xlabel('Country')
+    plt.ylabel('Life Expectancy')
+    plt.title('Life Expectancy Rankings in Southeast Asia (2015)')
+    plt.xticks(rotation=45)
+    st.pyplot(fig)
+
+    st.markdown('''
+        #### Conclusions:
+        - The mean life expectancy of Vietnam is higher than the global average.
+        - From 2000, Vietnam's ranking in terms of life expectancy falls within the range of the top 47 to 59 countries. In 2004, Vietnam ranked 47th globally, which was the highest ranking among the years analyzed. However, in 2015, Vietnam dropped to the 59th position globally, which was the lowest ranking among the years analyzed. 
+        - The life expectancy of Vietnam, based on statistics from 2000, is significantly lower compared to the top 5 countries with the highest average life expectancy in the world.
+        - From 2011 to 2015, Vietnam maintained its second-highest position in terms of life expectancy among the countries in the Southeast Asian region. Singapore remained at the top of the region in terms of life expectancy.
+    ''')
+
 #--------------------------regression analysis--------------------------
+# AR(1) model
+def AR():
+    st.markdown('### Autoregression Model (AR)')
+    explain_text = '''
+    Implementing the model based on trend factors, our team found that it is possible to deploy an AR model(1) to predict life expectancy values. \
+    In terms of meaning, the AR(1) model is similar to the linear regression model. However, the AR model(1) has an element of autocorrelation between \
+    the observed values immediately before and immediately after to be able to predict for the next year.  
+    '''
+    st.markdown(explain_text)
+    latex_text = '''\\begin{equation}x_t = \\theta_0 + \\theta_1 x_{t-1} + \\theta_2 x_{t-2}+ ... + \epsilon_t\end{equation}'''
+    st.latex(latex_text)
+    st.markdown('with $t$ is timestamp, $\theta$ are regression parameters, $\epsilon$ is noise (not mentioned in this project).')
+
+    world.index = pd.DatetimeIndex(world.index.values, freq=world.index.inferred_freq)
+    train, test = train_test_split(world, test_size=0.2, shuffle=False)
+
+    ar_model = AutoReg(train, lags=1).fit()
+    st.write(ar_model.summary())
+
+    st.markdown('Plotting the predicted values and the actual values, we can see that the AR model(1) \
+                can predict the life expectancy values with an acceptable accuracy.')
+    pred = ar_model.predict(start = len(train), end = (len(world)-1));
+    pred = pd.DataFrame({'World predicted': pred.values}, index = test.index)
+
+    comp = pd.concat([test, pred], axis=1)
+    fig = plt.figure()
+    plt.title('AR(1) model predict and atual values')
+    plt.plot(comp['World'], label='World actual')
+    plt.plot(comp['World predicted'], label='World predicted')
+    plt.legend(loc='center', bbox_to_anchor=(1.05,0.5))
+    fig_html = mpld3.fig_to_html(fig)
+    components.html(fig_html, height=600)
+
+    st.markdown('AR(1) Error (Mean squared error) on test dataset.')
+    st.write('MSE: ' + str(mean_squared_error(test, pred)))
+    st.markdown('As a result, we can use AR(1) model to predict life expectancy values in the near future.')
+    
+    st.markdown('#### Predicting average life expectancy worldwide in 2016 and 2017')
+    ar_model = AutoReg(world, lags=1).fit()
+    pred = ar_model.predict(start = len(world), end = (len(world)+1));
+    fig = plt.figure()
+    fig = ar_model.plot_predict(start = 1, end = (len(world)+1), dynamic=False);
+    plt.title('AR(1) model predict life expectancy worldwide in 2016 and 2017')
+    plt.legend(loc='center', bbox_to_anchor=(.25,.95))
+    st.pyplot(fig)
+    st.text(f'Worldwide:\n\tpredict in 2016: {pred[0]}\n\tpredict in 2017: {pred[1]}')
+
+    st.markdown('The result predicts the average life expectancy worldwide in 2016 is 71.91 years, in 2017 it is 72.21 years. With a lag of 1 and confidence interval of 95%.')
+    st.markdown('#### Vietnam Predictions for Life Expectancy in 2016 and 2017.')
+    vn.index = pd.DatetimeIndex(vn.index.values, freq=vn.index.inferred_freq)
+    ar_model = AutoReg(vn, lags=1).fit()
+    pred_vn = ar_model.predict(start = len(vn), end = (len(vn)+1));
+    fig = plt.figure()
+    fig = ar_model.plot_predict(start = 1, end = (len(vn)+1), dynamic=False);
+    plt.title('AR(1) model predict Vietnam\'s life expectancy in 2016 and 2017')
+    plt.legend(loc='center', bbox_to_anchor=(.25,.95))
+    st.pyplot(fig)  
+    st.text(f'Viet Nam:\n\tpredict in 2016: {pred_vn[0]}\n\tpredict in 2017: {pred_vn[1]}')
+
 # predict life expectancy
 train, test = df.loc[df.Year < 2014], df.loc[df.Year >= 2014]
 X_train, y_train = train.drop('Life expectancy', axis=1), train.loc[:, ['Life expectancy']]
@@ -352,6 +716,7 @@ def train_model():
 
 def predict_lifeExpectancy():
     st.markdown('## Predict life expectancy in the future')
+
     country = [['Viet Nam'] * (2031 - 2016)]
     year = [list(range(2016, 2031, 1))]
     nan_arr = [np.full(2031 - 2016, np.nan).tolist() for i in range(19)]
@@ -359,26 +724,41 @@ def predict_lifeExpectancy():
     X = pd.DataFrame(X)
 
     # predict
+    global last_model
     last_model = train_model()
+
+    global predictions
     predictions = last_model.predict(X)
+
+    # visualization
+    country = [['Viet Nam'] * (2031 - 2016)]
+    year = [list(range(2016, 2031, 1))]
+    nan_arr = [np.full(2031 - 2016, np.nan).tolist() for i in range(19)]
+    global future_sample_test
+    future_sample_test = dict(zip(X_train.columns, country + year + nan_arr))
+    future_sample_test = pd.DataFrame(future_sample_test)
+
+    # predict
+    predictions = last_model.predict(future_sample_test)
 
     # visualization
     fig = plt.figure()
     plt.plot(list(range(2016, 2031)), predictions, marker='o', markerfacecolor='red')
     for x in range(2016, 2031, 2):
         plt.text(x, predictions[x - 2016] - 0.2, round(predictions[x - 2016][0], 2), ha='center', va='bottom')
+        
     plt.xlabel('Year')
     plt.ylabel('Life expectancy prediction')
     plt.title('Prediction life expectancy of Viet Nam from 2016 - 2030')
 
-    plt.pyplot(fig)
+    st.pyplot(fig)
 
 
 # What factors influence life expectancy the most
 def most_influence():
     st.markdown('## What factors influence life expectancy the most?')
     feature_index = ["HIV/AIDS", "Adult Mortality", "Income composition of resources", "Schooling"]
-    feature_value = [0.529923, 0.211056, 0.163982,0.029546]
+    feature_value = [0.529923, 0.211056, 0.163982, 0.029546]
 
 
     fig = plt.figure(figsize=(10, 4))
@@ -399,36 +779,94 @@ def most_influence():
 # Does the higher the GDP, the longer the life expectancy of the country will increase?
 def higherGDP_longerLE():
     st.markdown('## Does the higher the GDP, the longer the life expectancy of the country will increase?')
+    intro = '''
+    With common sense, if a country has a high GDP, then they have more financial resources to invest in the health, \
+    health and quality of life of the people in the country. From there, it is possible to increase the average life expectancy of that country.  
+    But with the data we have learned, now we will try to put in some test sample when the GDP value has increased from the original value, \
+    what will the output look like?
+    '''
+
+    gdpVietNam_2015 = df.loc[(df.Country == 'Viet Nam') & (df.Year == 2015), 'GDP'].values[0]
+    gdpVietNam_future = np.array([gdpVietNam_2015 + (i - 2015)*500 for i in range(2016, 2031)])
+    future_sample_test.GDP = gdpVietNam_future
+
+    predictions2 = last_model.predict(future_sample_test)
+
+    # visualization
+    fig = plt.figure()
+    plt.plot(list(range(2016, 2031)), predictions, c='b', marker='o', markerfacecolor='red', label='normal prediction')
+    plt.plot(list(range(2016, 2031)), predictions2, c='g', marker='o', markerfacecolor='red', label='GDP increase 500 per year prediction')
+    for x in range(2016, 2031, 2):
+        plt.text(x, predictions[x - 2016], round(predictions[x - 2016][0], 2), ha='center', va='bottom')
+        plt.text(x, predictions2[x - 2016] - 0.15, round(predictions2[x - 2016][0], 2), ha='center', va='top')
+    
+    plt.xlabel('Year')
+    plt.ylabel('Life expectancy prediction')
+    plt.legend()
+    plt.title('Prediction life expectancy of Viet Nam from 2016 - 2030')
+
+    st.pyplot(fig)
+    st.markdown('Contrary to our expectations, according to our model, if GDP increases by 500 per year, the average life expectancy of that country decreases.')
 
 def regression_analysis():
     st.markdown('# Regression analysis')
-    # predict_lifeExpectancy()
+    predict_lifeExpectancy()
     most_influence()
     higherGDP_longerLE()
-
 
 #--------------------------Solution--------------------------
 # What factor should be changed to increase life expectancy?
 def factor_change():
     st.markdown('## What factor should be changed to increase life expectancy?')
+    comment = '''
+    We found in this part that: The higher life expectancy, the higher BMI, GDP, education and income composition of resource. In contrast of life expectancy, there are HIV/AIDS (most effect), infant death, thinnes of 1-19 years. So, if a country want to increase their life expectancy, they should increase their GDP, education, income composition of resource. And they should control HIV/AIDS, infant death, thinnes of 1-19 years proportion.
+    - HIV/AIDS: HIV/AIDS is a disease that is transmitted through sexual contact, blood transfusion, and contaminated hypodermic needles. It is a disease that affects the human immune system.
+    - Infant death: Infant mortality is the death of young children under the age of 1. This death toll is measured by the infant mortality rate (IMR), which is the number of deaths of children under one year of age per 1000 live births. There are many factors causes infant death such as birth defects, infections, SIDS, low birth weight, maternal pregnancy complications, and injuries.
+    - thinnes of 1-19 years: focus on nutrition.
+
+    Moreover, if a country is developed, their life expectancy will be higher regardless of any attributes.
+    '''
+    st.markdown(comment)
 
 # For Vietnam in particular, what factors need to be changed most to increase the average life expectancy?
 def factor_change_Vietnam():
     st.markdown('## For Vietnam in particular, what factors need to be changed most to increase the average life expectancy?')
+    comment = '''
+    Viet Nam has its own characteristics, when we take observation on Viet Nam, its life expectancy is higher than average life expectancy worldwide. It's really a big success from Viet Nam and be to said that we are proud of this. However, there are still some factors that need to be changed to increase the average life expectancy of Viet Nam. They are:
+    - thinnes of 1-19 years: its proportion is still high, although it is decreasing over time.
+    - Developing: Viet Nam is a developing country, so I think we should focus on developing our country to increase our life expectancy.
+    '''
+    st.markdown(comment)
 
 def solution():
     st.markdown('# Solution')
+    intro = '''
+    If a country want to improve their life expectency, the most important thing they should are:
+    - Prevent HIV/AIDS 
+    -  Care in take care of adults
+    -  Optimal utilization of available resources
+    -  Invest in education
+    -  Focus on nutrition for children 5 - 9 years
+    '''
     factor_change()
     factor_change_Vietnam()
 
 
 #--------------------------run--------------------------
-with open('style.css') as f:
-    st.markdown(f'<style>{f.read()}</style>', unsafe_allow_html=True)
+# with open('style.css') as f:
+#     st.markdown(f'<style>{f.read()}</style>', unsafe_allow_html=True)
+st.components.v1.html('<p style=\"font-size:300%;\
+                      color:white;\
+                      font-family:cambria;\
+                      text-align:center;\
+                      line-height:50px;\">Final Project<br>LIFE EXPECTANCY ANALYSIS</p>')
 
 read_data()
 descriptive_statistic()
 data_exploration()
+multivariate_analysis()
+compare_vn_world(df)
 timeseries_analysis()
+AR()
 regression_analysis()
 solution()
