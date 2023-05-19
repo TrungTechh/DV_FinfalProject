@@ -413,6 +413,7 @@ def timeseries_analysis():
 
     time = df.pivot(index='Year', columns='Country', values='Life expectancy')
     vn = time['Viet Nam']
+    sns.set_style('white')
     fig = plt.figure()
     plt.plot(vn, label='Viet Nam');
     plt.title('Life expectancy of Viet Nam')
