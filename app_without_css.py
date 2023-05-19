@@ -54,30 +54,31 @@ def read_data():
     data_description = '''
     #### Feature information
 
-    | Heeader name                    | Description |
-    | ------------------------------- | ----------- |
-    | Country                         |             |
-    | Year                            |             |
-    | Status                          |             |
-    | Life expectancy                 |             |
-    | Adult Mortality                 |             |
-    | infant deaths                   |             |
-    | Alcohol                         |             |
-    | percentage expenditure          |             |
-    | Hepatitis B                     |             |
-    | Measles                         |             |
-    | BMI                             |             |
-    | under-five deaths               |             |
-    | Polio                           |             |
-    | Total expenditure               |             |
-    | Diphtheria                      |             |
-    | HIV/AIDS                        |             |
-    | GDP                             |             |
-    | Population                      |             |
-    | thinness 1-19 years             |             |
-    | thinness 5-9 years              |             |
-    | Income composition of resources |             |
-    | Schooling                       |             |
+    | Heeader name                    | Description                                                              |
+    | ------------------------------- | -------------------------------------------------------------------------|
+    | Country                         | 193 countries in around the world                                        |
+    | Year                            | From 2000 to 2015                                                        |
+    | Status                          | Developed or Developing status                                           |
+    | Life expectancy                 | Life Expectancy in age                                                   |
+    | Adult Mortality                 | Adult Mortality Rates of both sexes (probability of dying between 15 and 60 years per 1000 population)                                     |
+    | infant deaths                   | Number of Infant Deaths per 1000 population                              |
+    | Alcohol                         | Alcohol, recorded per capita (15+) consumption (in litres of pure alcohol)                           |
+    | percentage expenditure          | Expenditure on health of Gross Domestic Product per capita(%)            |
+    | Hepatitis B                     | Hepatitis B (HepB) immunization coverage among 1-year-olds(%)           |
+    | Measles                         | Measles - number of reported cases per 1000 population                   |
+    | BMI                             | Average Body Mass Index of entire population                             |
+    | under-five deaths               | Number of under-five deaths per 1000 population                          |
+    | Polio                           | Polio (Pol3) immunization coverage among 1-year-olds (%)                 |
+    | Total expenditure               | General government expenditure on health as total (%)                    |
+    | Diphtheria                      | Diphtheria tetanus toxoid and pertussis immunization coverage among 1-year-olds (%)        |
+    | HIV/AIDS                        | Deaths per 1 000 live births HIV/AIDS (0-4 years)                        |
+    | GDP                             | Gross Domestic Product per capita (in USD)                               |
+    | Population                      | Population of the country                                                |
+    | thinness 1-19 years             | Prevalence of thinness among children and adolescents 10 to 19 Age (%)   |
+    | thinness 5-9 years              | Prevalence of thinness among children for Age 5 to 9(%)                  |
+    | Income composition of resources | Human Development Index of income composition of resources (0 to 1)              |
+    | Schooling                       | Number of years of Schooling(years)                                      |
+
     '''
     st.markdown(data_description)
 
@@ -523,6 +524,97 @@ def compare_vn_world(df_life):
     plt.ylabel("Mean Life Expectancy")
     st.pyplot(fig)
 
+    st.markdown('### The life expectancy ranking of Vietnam each year ')
+
+    # Filter the data from the year 2000 onwards
+    df_from_2000 = df_life[df_life['Year'] >= 2000]
+
+    # Create an empty DataFrame to store the rankings
+    df_ranking = pd.DataFrame(columns=['Year', 'Rank'])
+
+    # Iterate over each year
+    for year in df_from_2000['Year'].unique():
+        df_year = df_from_2000[df_from_2000['Year'] == year]
+        df_year_sorted = df_year.sort_values('Life expectancy', ascending=False)
+        df_year_sorted.reset_index(drop=True, inplace=True)
+        df_year_sorted.index = df_year_sorted.index + 1
+        vietnam_rank = df_year_sorted[df_year_sorted['Country'] == 'Viet Nam'].index[0]
+        df_ranking = df_ranking.append({'Year': year, 'Rank': vietnam_rank}, ignore_index=True)
+
+    # Plot the ranking of Vietnam over the years
+    fig = plt.figure()
+    plt.plot(df_ranking['Year'], df_ranking['Rank'], marker='o')
+    plt.title('Ranking of Vietnam in Life Expectancy')
+    plt.xlabel('Year')
+    plt.ylabel('Rank')
+    plt.grid(True)
+    st.pyplot(fig)
+
+    st.markdown('### Compare the life expectancy of Vietnam with the top 5 countries with the highest life expectancy')
+
+    df_avg_life_expectancy = df_life.groupby('Country')['Life expectancy'].mean().reset_index()
+    df_avg_life_expectancy = df_avg_life_expectancy.sort_values('Life expectancy', ascending=False)
+    top_5_countries = df_avg_life_expectancy.head(5)['Country'].tolist()
+    selected_countries = ['Viet Nam'] + top_5_countries
+    df_comparison = df_life[df_life['Country'].isin(selected_countries)]
+    fig = plt.figure()
+    sns.lineplot(data=df_comparison, x='Year', y='Life expectancy', hue='Country', marker='o')
+    plt.title('Comparison of Life Expectancy: Vietnam vs Top 5 Countries')
+    plt.xlabel('Year')
+    plt.ylabel('Life Expectancy')
+    plt.legend(loc='center left', bbox_to_anchor=(1, .5))
+    st.pyplot(fig)
+
+    st.markdown('### The life expectancy of Vietnam and Southeast Asian countries in the most recent 5 years')
+
+    # Filter the data for Southeast Asian countries and the most recent 5 years
+    southeast_asian_countries = ['Viet Nam', 'Thailand', 'Indonesia', 'Philippines', 'Malaysia', 'Singapore', 'Cambodia', 'Myanmar', 'Laos']
+    df_southeast_asia = df_life[df_life['Country'].isin(southeast_asian_countries)]
+    recent_years = df_southeast_asia['Year'].max() - 4
+    df_recent = df_southeast_asia[df_southeast_asia['Year'] >= recent_years]
+
+    # Plot the life expectancy of Vietnam and Southeast Asian countries in the most recent 5 years
+    fig = plt.figure()
+    plt.plot(df_recent[df_recent['Country'] == 'Viet Nam']['Year'], df_recent[df_recent['Country'] == 'Viet Nam']['Life expectancy'], marker='o', label='Vietnam')
+    for country in southeast_asian_countries:
+        if country != 'Viet Nam':
+            plt.plot(df_recent[df_recent['Country'] == country]['Year'], df_recent[df_recent['Country'] == country]['Life expectancy'], marker = 'o', label=country)
+    plt.title("Life Expectancy Comparison: Vietnam vs Southeast Asian Countries")
+    plt.xlabel("Year")
+    plt.ylabel("Life Expectancy")
+    plt.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+    plt.grid(True)
+    st.pyplot(fig)
+
+    st.markdown('### The life expectancy rankings of Vietnam and other countries in Southeast Asia in 2015')
+
+    # Filter the data for Southeast Asian countries in the year 2015
+    df_sea_2015 = df_life[(df_life['Country'].isin(southeast_asian_countries)) & (df_life['Year'] == 2015)]
+    # Sort the data by life expectancy in descending order
+    df_sea_2015_sorted = df_sea_2015.sort_values('Life expectancy', ascending=False)
+    # Get the rank of Vietnam in 2015
+    vietnam_rank = df_sea_2015_sorted[df_sea_2015_sorted['Country'] == 'Viet Nam'].index[0] + 1
+    # Create a bar plot for life expectancy rankings in Southeast Asia (2015)
+    fig = plt.figure()
+    sns.set_style('whitegrid')
+    plt.bar(df_sea_2015_sorted['Country'], df_sea_2015_sorted['Life expectancy'], color=['blue' if country != 'Viet Nam' else 'red' for country in df_sea_2015_sorted['Country']])
+    plt.xlabel('Country')
+    plt.ylabel('Life Expectancy')
+    plt.title('Life Expectancy Rankings in Southeast Asia (2015)')
+    plt.xticks(rotation=45)
+    st.pyplot(fig)
+
+    st.markdown('''
+        #### Conclusions:
+        - The mean life expectancy of Vietnam is higher than the global average.
+        - From 2000, Vietnam's ranking in terms of life expectancy falls within the range of the top 47 to 59 countries. In 2004, Vietnam ranked 47th globally, which was the highest ranking among the years analyzed. However, in 2015, Vietnam dropped to the 59th position globally, which was the lowest ranking among the years analyzed. 
+        - The life expectancy of Vietnam, based on statistics from 2000, is significantly lower compared to the top 5 countries with the highest average life expectancy in the world.
+        - From 2011 to 2015, Vietnam maintained its second-highest position in terms of life expectancy among the countries in the Southeast Asian region. Singapore remained at the top of the region in terms of life expectancy.
+    ''')
+
+# -------------------------AR(1) model-------------------------
+
+
 #--------------------------regression analysis--------------------------
 # predict life expectancy
 train, test = df.loc[df.Year < 2014], df.loc[df.Year >= 2014]
@@ -628,10 +720,10 @@ with open('style.css') as f:
     st.markdown(f'<style>{f.read()}</style>', unsafe_allow_html=True)
 
 read_data()
-# descriptive_statistic()
-# data_exploration()
+descriptive_statistic()
+data_exploration()
 multivariate_analysis()
 compare_vn_world(df)
-# timeseries_analysis()
+timeseries_analysis()
 # regression_analysis()
 # solution()
