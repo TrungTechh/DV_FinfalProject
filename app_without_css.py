@@ -32,6 +32,18 @@ from sklearn.pipeline import Pipeline, make_pipeline
 df = pd.read_csv('Life_Expectancy_Data.csv')
 years = pd.unique(df.Year)
 
+# Handle missing value
+# List of columns to impute
+cols_to_impute = ['Life expectancy', 'Adult Mortality', 'Alcohol',
+                  'Hepatitis B', 'BMI', 'Polio', 'Total expenditure',
+                  'Diphtheria', 'GDP', 'Population', 'thinness 1-19 years',
+                  'thinness 5-9 years', 'Income composition of resources',
+                  'Schooling']
+
+# Loop over columns and impute missing values with the mean of the same year
+for col in cols_to_impute:
+    df[col] = df.groupby('Year')[col].transform(lambda x: x.fillna(x.mean()))
+
 def read_data():
 
     # I. Read data
@@ -303,6 +315,7 @@ def plot2(df_life, features, title='Features', columns=2, x_lim=None):
     fig.suptitle('{} x Life Expectancy'.format(title), fontsize=25, x=0.56)
     fig.tight_layout(rect=[0.05, 0.03, 1, 1])
     st.pyplot(fig)
+
 #Function to plot scatter plots
 def plot_scatterplot(df_life, features, title = 'Features', columns = 2, x_lim=None):
     
@@ -333,6 +346,7 @@ def plot_scatterplot(df_life, features, title = 'Features', columns = 2, x_lim=N
 
     fig.tight_layout(rect=[0.05, 0.03, 1, 1])
     st.pyplot(fig)
+
 def multivariate_analysis():
     st.markdown('## Multivariate analysis')
     df_life = df.copy()
@@ -434,6 +448,7 @@ def timeseries_analysis():
                 then we reject H1 and conclude that the time series is non-stationary (accept H0).')
 
     time = time.T
+    global world
     world = time.describe().round(2)
     world = world.loc[world.index == 'mean']
     world = world.T.rename({'mean': 'World'}, axis=1)
@@ -613,10 +628,40 @@ def compare_vn_world(df_life):
         - From 2011 to 2015, Vietnam maintained its second-highest position in terms of life expectancy among the countries in the Southeast Asian region. Singapore remained at the top of the region in terms of life expectancy.
     ''')
 
-# -------------------------AR(1) model-------------------------
-
-
 #--------------------------regression analysis--------------------------
+# AR(1) model
+def AR():
+    st.markdown('### Autoregression Model (AR)')
+    explain_text = '''
+    Implementing the model based on trend factors, our team found that it is possible to deploy an AR model(1) to predict life expectancy values. \
+    In terms of meaning, the AR(1) model is similar to the linear regression model. However, the AR model(1) has an element of autocorrelation between \
+    the observed values immediately before and immediately after to be able to predict for the next year.  
+    '''
+    st.markdown(explain_text)
+    latex_text = '\begin{equation}x_t = \theta_0 + \theta_1 x_{t-1} + \theta_2 x_{t-2}+ ... + \epsilon_t\end{equation}'
+    st.latex(latex_text)
+    st.markdown('with $t$ is timestamp, $\theta$ are regression parameters, $\epsilon$ is noise (not mentioned in this project).')
+
+    world.index = pd.DatetimeIndex(world.index.values, freq=world.index.inferred_freq)
+    train, test = train_test_split(world, test_size=0.2, shuffle=False)
+
+    ar_model = AutoReg(train, lags=1).fit()
+    st.write(ar_model.summary())
+
+    st.markdown('Plotting the predicted values and the actual values, we can see that the AR model(1) \
+                can predict the life expectancy values with an acceptable accuracy.')
+    pred = ar_model.predict(start = len(train), end = (len(world)-1));
+    pred = pd.DataFrame({'World predicted': pred.values}, index = test.index)
+
+    comp = pd.concat([test, pred], axis=1)
+    fig = plt.figure()
+    plt.plot(comp)
+    st.pyplot(fig)
+
+    st.write('MSE: ' + str(mean_squared_error(test, pred)))
+    st.markdown('As a result, we can use AR(1) model to predict life expectancy values in the near future.')
+    st.markdown('#### Predicting average life expectancy worldwide in 2016 and 2017')
+
 # predict life expectancy
 train, test = df.loc[df.Year < 2014], df.loc[df.Year >= 2014]
 X_train, y_train = train.drop('Life expectancy', axis=1), train.loc[:, ['Life expectancy']]
@@ -646,6 +691,7 @@ def train_model():
 
 def predict_lifeExpectancy():
     st.markdown('## Predict life expectancy in the future')
+
     country = [['Viet Nam'] * (2031 - 2016)]
     year = [list(range(2016, 2031, 1))]
     nan_arr = [np.full(2031 - 2016, np.nan).tolist() for i in range(19)]
@@ -653,26 +699,41 @@ def predict_lifeExpectancy():
     X = pd.DataFrame(X)
 
     # predict
+    global last_model
     last_model = train_model()
+
+    global predictions
     predictions = last_model.predict(X)
+
+    # visualization
+    country = [['Viet Nam'] * (2031 - 2016)]
+    year = [list(range(2016, 2031, 1))]
+    nan_arr = [np.full(2031 - 2016, np.nan).tolist() for i in range(19)]
+    global future_sample_test
+    future_sample_test = dict(zip(X_train.columns, country + year + nan_arr))
+    future_sample_test = pd.DataFrame(future_sample_test)
+
+    # predict
+    predictions = last_model.predict(future_sample_test)
 
     # visualization
     fig = plt.figure()
     plt.plot(list(range(2016, 2031)), predictions, marker='o', markerfacecolor='red')
     for x in range(2016, 2031, 2):
         plt.text(x, predictions[x - 2016] - 0.2, round(predictions[x - 2016][0], 2), ha='center', va='bottom')
+        
     plt.xlabel('Year')
     plt.ylabel('Life expectancy prediction')
     plt.title('Prediction life expectancy of Viet Nam from 2016 - 2030')
 
-    plt.pyplot(fig)
+    st.pyplot(fig)
 
 
 # What factors influence life expectancy the most
 def most_influence():
     st.markdown('## What factors influence life expectancy the most?')
-    feature_index = ["HIV/AIDS", "Adult Mortality", "Income composition of resources", "Schooling", "thinness 5-9 years"]
-    feature_value = [0.529923, 0.211056, 0.163982,0.029546]
+    feature_index = ["HIV/AIDS", "Adult Mortality", "Income composition of resources", "Schooling"]
+    feature_value = [0.529923, 0.211056, 0.163982, 0.029546]
 
 
     fig = plt.figure(figsize=(10, 4))
@@ -693,32 +754,87 @@ def most_influence():
 # Does the higher the GDP, the longer the life expectancy of the country will increase?
 def higherGDP_longerLE():
     st.markdown('## Does the higher the GDP, the longer the life expectancy of the country will increase?')
+    intro = '''
+    With common sense, if a country has a high GDP, then they have more financial resources to invest in the health, \
+    health and quality of life of the people in the country. From there, it is possible to increase the average life expectancy of that country.  
+    But with the data we have learned, now we will try to put in some test sample when the GDP value has increased from the original value, \
+    what will the output look like?
+    '''
+
+    gdpVietNam_2015 = df.loc[(df.Country == 'Viet Nam') & (df.Year == 2015), 'GDP'].values[0]
+    gdpVietNam_future = np.array([gdpVietNam_2015 + (i - 2015)*500 for i in range(2016, 2031)])
+    future_sample_test.GDP = gdpVietNam_future
+
+    predictions2 = last_model.predict(future_sample_test)
+
+    # visualization
+    fig = plt.figure()
+    plt.plot(list(range(2016, 2031)), predictions, c='b', marker='o', markerfacecolor='red', label='normal prediction')
+    plt.plot(list(range(2016, 2031)), predictions2, c='g', marker='o', markerfacecolor='red', label='GDP increase 500 per year prediction')
+    for x in range(2016, 2031, 2):
+        plt.text(x, predictions[x - 2016], round(predictions[x - 2016][0], 2), ha='center', va='bottom')
+        plt.text(x, predictions2[x - 2016] - 0.15, round(predictions2[x - 2016][0], 2), ha='center', va='top')
+    
+    plt.xlabel('Year')
+    plt.ylabel('Life expectancy prediction')
+    plt.legend()
+    plt.title('Prediction life expectancy of Viet Nam from 2016 - 2030')
+
+    st.pyplot(fig)
+    st.markdown('Contrary to our expectations, according to our model, if GDP increases by 500 per year, the average life expectancy of that country decreases.')
 
 def regression_analysis():
     st.markdown('# Regression analysis')
-    # predict_lifeExpectancy()
+    predict_lifeExpectancy()
     most_influence()
     higherGDP_longerLE()
-
 
 #--------------------------Solution--------------------------
 # What factor should be changed to increase life expectancy?
 def factor_change():
     st.markdown('## What factor should be changed to increase life expectancy?')
+    comment = '''
+    We found in this part that: The higher life expectancy, the higher BMI, GDP, education and income composition of resource. In contrast of life expectancy, there are HIV/AIDS (most effect), infant death, thinnes of 1-19 years. So, if a country want to increase their life expectancy, they should increase their GDP, education, income composition of resource. And they should control HIV/AIDS, infant death, thinnes of 1-19 years proportion.
+    - HIV/AIDS: HIV/AIDS is a disease that is transmitted through sexual contact, blood transfusion, and contaminated hypodermic needles. It is a disease that affects the human immune system.
+    - Infant death: Infant mortality is the death of young children under the age of 1. This death toll is measured by the infant mortality rate (IMR), which is the number of deaths of children under one year of age per 1000 live births. There are many factors causes infant death such as birth defects, infections, SIDS, low birth weight, maternal pregnancy complications, and injuries.
+    - thinnes of 1-19 years: focus on nutrition.
+
+    Moreover, if a country is developed, their life expectancy will be higher regardless of any attributes.
+    '''
+    st.markdown(comment)
 
 # For Vietnam in particular, what factors need to be changed most to increase the average life expectancy?
 def factor_change_Vietnam():
     st.markdown('## For Vietnam in particular, what factors need to be changed most to increase the average life expectancy?')
+    comment = '''
+    Viet Nam has its own characteristics, when we take observation on Viet Nam, its life expectancy is higher than average life expectancy worldwide. It's really a big success from Viet Nam and be to said that we are proud of this. However, there are still some factors that need to be changed to increase the average life expectancy of Viet Nam. They are:
+    - thinnes of 1-19 years: its proportion is still high, although it is decreasing over time.
+    - Developing: Viet Nam is a developing country, so I think we should focus on developing our country to increase our life expectancy.
+    '''
+    st.markdown(comment)
 
 def solution():
     st.markdown('# Solution')
+    intro = '''
+    If a country want to improve their life expectency, the most important thing they should are:
+    - Prevent HIV/AIDS 
+    -  Care in take care of adults
+    -  Optimal utilization of available resources
+    -  Invest in education
+    -  Focus on nutrition for children 5 - 9 years
+    '''
     factor_change()
     factor_change_Vietnam()
 
 
 #--------------------------run--------------------------
-with open('style.css') as f:
-    st.markdown(f'<style>{f.read()}</style>', unsafe_allow_html=True)
+# with open('style.css') as f:
+#     st.markdown(f'<style>{f.read()}</style>', unsafe_allow_html=True)
+st.components.v1.html('<p style=\"font-size:300%;\
+                      color:white;\
+                      font-family:cambria;\
+                      text-align:center;\
+                      line-height:50px;\">Final Project<br>LIFE EXPECTANCY ANALYSIS</p>')
 
 read_data()
 descriptive_statistic()
@@ -726,5 +842,5 @@ data_exploration()
 multivariate_analysis()
 compare_vn_world(df)
 timeseries_analysis()
-# regression_analysis()
-# solution()
+regression_analysis()
+solution()
