@@ -33,6 +33,7 @@ df = pd.read_csv('Life_Expectancy_Data.csv')
 years = pd.unique(df.Year)
 
 def read_data():
+
     # I. Read data
     st.markdown('# Read the data')
 
@@ -273,14 +274,139 @@ def univariate_analysis():
     univariate_bmi()
 
 #-------------multivariate analysis-------------
+def plot1(df_life, features, title='Features', columns=2, x_lim=None):
+    rows = math.ceil(len(features) / 2)
+    fig, ax = plt.subplots(rows, columns, sharey=True)
+    for i, feature in enumerate(features):
+        ax = plt.subplot(rows, columns, i + 1)
+        sns.regplot(data=df_life, x=feature, y='Life expectancy', scatter_kws={'s': 60, 'edgecolor': 'k'},
+                    line_kws={'color': 'red'}, ax=ax)
+        ax.set_title('Life Expectancy vs ' + feature)
+        
+    fig.suptitle('{} x Life Expectancy'.format(title), fontsize=25, x=0.56)
+    fig.tight_layout(rect=[0.05, 0.03, 1, 1])
+    st.pyplot(fig)
+
+# Function to plot scatter plots with regression lines but usse log scale 
+def plot2(df_life, features, title='Features', columns=2, x_lim=None):
+    rows = math.ceil(len(features) / 2)
+    fig, ax = plt.subplots(rows, columns, sharey=True)
+    
+    for i, feature in enumerate(features):
+        ax = plt.subplot(rows, columns, i + 1)
+        log_feature = np.log1p(df_life[feature])
+        sns.regplot(data=df_life, x=log_feature, y='Life expectancy', scatter_kws={'s': 60, 'edgecolor': 'k'},
+                    line_kws={'color': 'red'}, ax=ax)
+        ax.set_title('Life Expectancy vs log(' + feature + ')')
+        
+    fig.suptitle('{} x Life Expectancy'.format(title), fontsize=25, x=0.56)
+    fig.tight_layout(rect=[0.05, 0.03, 1, 1])
+    st.pyplot(fig)
+#Function to plot scatter plots
+def plot_scatterplot(df_life, features, title = 'Features', columns = 2, x_lim=None):
+    
+    rows = math.ceil(len(features)/2)
+
+    fig, ax = plt.subplots(rows, columns, sharey = True)
+    
+    for i, feature in enumerate(features):
+        ax = plt.subplot(rows, columns, i+1)
+        sns.scatterplot(data = df_life,
+                        x = feature,
+                        y = 'Life expectancy',
+                        hue = 'Status',
+                        palette=['#669bbc', '#c1121f'],
+                        ax = ax)
+        if (i == 0):
+            ax.legend()
+        else:
+            ax.legend("")
+        
+    fig.legend(*ax.get_legend_handles_labels(), 
+               loc='lower center', 
+               bbox_to_anchor=(1.04, 0.5),
+               fontsize='small')
+    fig.suptitle('{} x Life Expectancy'.format(title), 
+                 fontsize = 25, 
+                 x = 0.56);
+
+    fig.tight_layout(rect=[0.05, 0.03, 1, 1])
+    st.pyplot(fig)
 def multivariate_analysis():
     st.markdown('## Multivariate analysis')
+    df_life = df.copy()
+    columns_name_fixed = []
+
+    for column in df.columns:
+        if column == ' thinness  1-19 years':
+            column = 'Thinness 1-19 years'
+        else:
+            column = column.strip(' ').replace("  ", " ")
+            column = column[:1].upper() + column[1:]
+        columns_name_fixed.append(column)
+    df_life.columns = columns_name_fixed
+
+    st.markdown('### The relationships of the life expectancy with the other independent variables')
+    
+    # List of positively correlated features with life expectancy
+    pos_correlated_features = ['Income composition of resources', 'Schooling', 'GDP', 'Total expenditure', 
+                            'BMI', 'Diphtheria']
+    # Plot scatter plots with regression lines for positively correlated features
+    plot1(df_life, pos_correlated_features, title='Positively Correlated Features')
+    # List of negatively correlated features with life expectancy
+    neg_correlated_features = ['Adult Mortality', 'HIV/AIDS', 
+                                'Thinness 1-19 years', 'Infant deaths']
+    # Plot scatter plots with regression lines for nagatively correlated features
+    plot1(df_life, neg_correlated_features, title='Negatively Correlated Features')
+    #Check other correlations
+    features = ['Population', 'Alcohol']
+    plot1(df_life, features)
+
+    # List of positively correlated features with life expectancy
+    positively_correlated_features = ['Income composition of resources', 'Schooling', 'GDP', 'Total expenditure', 
+                            'BMI', 'Diphtheria']
+    # Plot scatter plots with regression lines for the logarithm of positively correlated features
+    plot2(df_life, positively_correlated_features, title='Positively Correlated Features (log scale)')
+    # List of negatively correlated features with life expectancy
+    neg_correlated_features = ['Adult Mortality', 'HIV/AIDS', 
+                                'Thinness 1-19 years', 'Infant deaths']
+    # Plot scatter plots with regression lines for the logarithm of negatively correlated features
+    plot2(df_life, neg_correlated_features, title='Negatively Correlated Features (log scale)')
+    #Check other correlations
+    features = ['Population', 'Alcohol']
+    plot2(df_life, features, title='Other Features (log scale)')
+
+    st.markdown('### The relationships of the life expectancy point with the other independent variables group by country status')
+
+    #Plot Life Expectancy x positively correlated features
+    pos_correlated_features = ['Income composition of resources', 'Schooling', 
+                            'GDP', 'Total expenditure', 
+                            'BMI', 'Diphtheria']
+    title = 'Positively correlated features'
+    plot_scatterplot(df_life, pos_correlated_features, title)
+    #Plot Life Expectancy x negatively correlated features
+    neg_correlated_features = ['Adult Mortality', 'HIV/AIDS', 
+                            'Thinness 1-19 years', 'Infant deaths']
+    title = 'Negatively correlated features'
+    plot_scatterplot(df_life, neg_correlated_features, title)
+    #Check other correlations
+    df_temp = df_life.loc[df_life['Population'] <= 1*1e7, :] 
+    features = ['Population', 'Alcohol']
+    plot_scatterplot(df_temp, features)
+    st.markdown('''
+    #### Conclusions:
+        - It seems that the absolute number of a country's population does not have a direct relationship with life expectancy. Perhaps a more interesting variable would be population density, which can provide more clues about the country's social and geographical conditions.
+        - Another interesting point is that countries with the highest alcohol consumption also have the highest life expectancies. However, this seems to be the classic case for using the maxim 'Correlation does not imply causation'. The life expectancy of someone who owns a Ferrari is possibly higher than that of the rest of the population, but that does not mean that buying a Ferrari will increase their life expectancy. The same applies to alcohol. One hypothesis is that in developed countries, the population's average has better financial conditions, allowing for greater consumption of luxury goods such as alcohol.
+        - After checking the relationships of the dependent variable with the independent variables, it is important to analyze the distribution of these variables. Through them, it is possible to have the first clues if there are outliers in the dataset.    
+    ''')
+
 
 #-------------time-series analysis--------------
 def timeseries_analysis():
     st.markdown('## Time - series analysis')
+    
+    #-----------------Stationarity-----------------
     st.markdown('### Are life expectancy stationary?')
-
     df = pd.read_csv('LE_cleaned_data.csv')
     df['Year'] = pd.to_datetime(df['Year'], format='%Y')
 
@@ -288,6 +414,10 @@ def timeseries_analysis():
     vn = time['Viet Nam']
     fig = plt.figure()
     plt.plot(vn, label='Viet Nam');
+    plt.title('Life expectancy of Viet Nam')
+    plt.xlabel('Year')
+    plt.ylabel('Life expectancy')
+
     # st.pyplot(fig)
     fig_html = mpld3.fig_to_html(fig)
     components.html(fig_html, height=600)
@@ -300,15 +430,65 @@ def timeseries_analysis():
     st.text('P-value: ' + str(df_station[1]))
     st.markdown('We calculated p-value = 0.5 > 0.05, \
                 then we reject H1 and conclude that the time series is non-stationary (accept H0).')
+
     time = time.T
     world = time.describe().round(2)
     world = world.loc[world.index == 'mean']
     world = world.T.rename({'mean': 'World'}, axis=1)
     merged = world.reset_index().merge(vn.reset_index(),left_on = 'Year', right_on = 'Year', how = 'inner')
     merged.set_index('Year', inplace=True)
+
     fig = plt.figure()
     plt.plot(merged.index, merged['Viet Nam'], label='Viet Nam');
     plt.plot(merged.index, merged['World'], label='World');
+    plt.title('Life expectancy of Viet Nam and World')
+    plt.xlabel('Year')
+    plt.ylabel('Life expectancy')
+    plt.legend()
+    fig_html = mpld3.fig_to_html(fig)
+    components.html(fig_html, height=600)
+
+    st.markdown('''
+        Conclusion:
+            - Life Expectancy tends to increase over time.
+            - This time-series data is non-stationary.
+        ### Cyclical Analysis
+        Is the time-series data cyclical? Let us explore first with autocorrelation by ACF and PACF visualization.''')
+    
+    #-----------------Cyclical-----------------
+    fig, ax = plt.subplots()
+    acf_cal = world.reset_index().rename(columns={'World':'Life Expectancy'})
+    # mpl.rc("figure")
+    plot_acf(acf_cal["Life Expectancy"], lags = 15, ax=ax);
+    st.pyplot(fig)
+
+    fig,ax = plt.subplots()
+    plot_pacf(acf_cal["Life Expectancy"], lags = 7, method='ywm', ax=ax);
+    st.pyplot(fig)
+    st.markdown('''Durbin-Watson hypothesis test for autocorrelation, which can be a value belonged to these ranges:
+        - $0 < val < 1$: the data has positive autocorrelation.
+        - $1< val <3$: the data has no autocorrelation.
+        - $3 < val < 4$: the data has negative autocorrelation.''')
+    st.text('Durbin-Watson: ' + str(durbin_watson(acf_cal["Life Expectancy"])))
+    st.markdown('''Conclusion:
+        - Life expectancy has positive autocorrelation.
+        - Life expectancy within this dataset is not cyclical.
+        ### Detrending''')
+    
+    #-----------------Detrending-----------------
+    temp = world.reset_index().rename(columns={'World':'Life Expectancy'})
+    detr = signal.detrend(temp['Life Expectancy'])
+    detr = pd.DataFrame({'LE detrend':detr},index = world.index)
+
+    temp.set_index('Year', inplace=True)
+    fig = plt.figure()
+    plt.plot(temp["Life Expectancy"], label=temp.columns[0])
+    plt.plot(detr, label=detr.columns[0])
+    plt.xticks(rotation=45)
+    plt.xlabel("Time", fontsize=12)
+    plt.ylabel("Life Expentancy", fontsize=12)
+    plt.legend(fontsize=12)
+    plt.title("Life Expectancy from 2000 to 2015", fontsize=18)
     fig_html = mpld3.fig_to_html(fig)
     components.html(fig_html, height=600)
 
@@ -326,6 +506,22 @@ def data_exploration():
     st.markdown(univariate_md)
 
     univariate_analysis()
+
+def compare_vn_world(df_life):
+    st.markdown('## Comparation of Life Expectancy between Viet Nam and the World ')
+    st.markdown('### The mean life expectancy of Vietnam with the global average')
+
+    # Calculate mean life expectancy for Vietnam and global
+    global_mean_life_expectancy = df_life["Life expectancy"].mean()
+    vietnam_mean_life_expectancy = df_life[df_life["Country"] == "Viet Nam"]["Life expectancy"].mean()
+
+    # Create a bar plot with customized colors
+    fig = plt.figure()
+    plt.bar(["Global", "Vietnam"], [global_mean_life_expectancy, vietnam_mean_life_expectancy], color=["green", "red"])
+    plt.title("Mean Life Expectancy: Global vs Vietnam")
+    plt.xlabel("Country")
+    plt.ylabel("Mean Life Expectancy")
+    st.pyplot(fig)
 
 #--------------------------regression analysis--------------------------
 # predict life expectancy
@@ -432,8 +628,10 @@ with open('style.css') as f:
     st.markdown(f'<style>{f.read()}</style>', unsafe_allow_html=True)
 
 read_data()
-descriptive_statistic()
-data_exploration()
-timeseries_analysis()
-regression_analysis()
-solution()
+# descriptive_statistic()
+# data_exploration()
+multivariate_analysis()
+compare_vn_world(df)
+# timeseries_analysis()
+# regression_analysis()
+# solution()
