@@ -289,7 +289,7 @@ def univariate_analysis():
 #-------------multivariate analysis-------------
 def plot1(df_life, features, title='Features', columns=2, x_lim=None):
     rows = math.ceil(len(features) / 2)
-    fig, ax = plt.subplots(rows, columns, sharey=True)
+    fig, ax = plt.subplots(rows, columns, sharey=True, figsize=(25, 20))
     for i, feature in enumerate(features):
         ax = plt.subplot(rows, columns, i + 1)
         sns.regplot(data=df_life, x=feature, y='Life expectancy', scatter_kws={'s': 60, 'edgecolor': 'k'},
@@ -303,7 +303,7 @@ def plot1(df_life, features, title='Features', columns=2, x_lim=None):
 # Function to plot scatter plots with regression lines but usse log scale 
 def plot2(df_life, features, title='Features', columns=2, x_lim=None):
     rows = math.ceil(len(features) / 2)
-    fig, ax = plt.subplots(rows, columns, sharey=True)
+    fig, ax = plt.subplots(rows, columns, sharey=True, figsize=(25, 20))
     
     for i, feature in enumerate(features):
         ax = plt.subplot(rows, columns, i + 1)
@@ -321,7 +321,7 @@ def plot_scatterplot(df_life, features, title = 'Features', columns = 2, x_lim=N
     
     rows = math.ceil(len(features)/2)
 
-    fig, ax = plt.subplots(rows, columns, sharey = True)
+    fig, ax = plt.subplots(rows, columns, sharey = True, figsize=(25, 20))
     
     for i, feature in enumerate(features):
         ax = plt.subplot(rows, columns, i+1)
@@ -331,10 +331,6 @@ def plot_scatterplot(df_life, features, title = 'Features', columns = 2, x_lim=N
                         hue = 'Status',
                         palette=['#669bbc', '#c1121f'],
                         ax = ax)
-        if (i == 0):
-            ax.legend()
-        else:
-            ax.legend("")
         
     fig.legend(*ax.get_legend_handles_labels(), 
                loc='lower center', 
@@ -426,6 +422,7 @@ def timeseries_analysis():
     df['Year'] = pd.to_datetime(df['Year'], format='%Y')
 
     time = df.pivot(index='Year', columns='Country', values='Life expectancy')
+    global vn
     vn = time['Viet Nam']
     sns.set_style('white')
     fig = plt.figure()
@@ -638,7 +635,7 @@ def AR():
     the observed values immediately before and immediately after to be able to predict for the next year.  
     '''
     st.markdown(explain_text)
-    latex_text = '\begin{equation}x_t = \theta_0 + \theta_1 x_{t-1} + \theta_2 x_{t-2}+ ... + \epsilon_t\end{equation}'
+    latex_text = '''\\begin{equation}x_t = \\theta_0 + \\theta_1 x_{t-1} + \\theta_2 x_{t-2}+ ... + \epsilon_t\end{equation}'''
     st.latex(latex_text)
     st.markdown('with $t$ is timestamp, $\theta$ are regression parameters, $\epsilon$ is noise (not mentioned in this project).')
 
@@ -655,12 +652,38 @@ def AR():
 
     comp = pd.concat([test, pred], axis=1)
     fig = plt.figure()
-    plt.plot(comp)
-    st.pyplot(fig)
+    plt.title('AR(1) model predict and atual values')
+    plt.plot(comp['World'], label='World actual')
+    plt.plot(comp['World predicted'], label='World predicted')
+    plt.legend(loc='center', bbox_to_anchor=(1.05,0.5))
+    fig_html = mpld3.fig_to_html(fig)
+    components.html(fig_html, height=600)
 
+    st.markdown('AR(1) Error (Mean squared error) on test dataset.')
     st.write('MSE: ' + str(mean_squared_error(test, pred)))
     st.markdown('As a result, we can use AR(1) model to predict life expectancy values in the near future.')
+    
     st.markdown('#### Predicting average life expectancy worldwide in 2016 and 2017')
+    ar_model = AutoReg(world, lags=1).fit()
+    pred = ar_model.predict(start = len(world), end = (len(world)+1));
+    fig = plt.figure()
+    fig = ar_model.plot_predict(start = 1, end = (len(world)+1), dynamic=False);
+    plt.title('AR(1) model predict life expectancy worldwide in 2016 and 2017')
+    plt.legend(loc='center', bbox_to_anchor=(.25,.95))
+    st.pyplot(fig)
+    st.text(f'Worldwide:\n\tpredict in 2016: {pred[0]}\n\tpredict in 2017: {pred[1]}')
+
+    st.markdown('The result predicts the average life expectancy worldwide in 2016 is 71.91 years, in 2017 it is 72.21 years. With a lag of 1 and confidence interval of 95%.')
+    st.markdown('#### Vietnam Predictions for Life Expectancy in 2016 and 2017.')
+    vn.index = pd.DatetimeIndex(vn.index.values, freq=vn.index.inferred_freq)
+    ar_model = AutoReg(vn, lags=1).fit()
+    pred_vn = ar_model.predict(start = len(vn), end = (len(vn)+1));
+    fig = plt.figure()
+    fig = ar_model.plot_predict(start = 1, end = (len(vn)+1), dynamic=False);
+    plt.title('AR(1) model predict Vietnam\'s life expectancy in 2016 and 2017')
+    plt.legend(loc='center', bbox_to_anchor=(.25,.95))
+    st.pyplot(fig)  
+    st.text(f'Viet Nam:\n\tpredict in 2016: {pred_vn[0]}\n\tpredict in 2017: {pred_vn[1]}')
 
 # predict life expectancy
 train, test = df.loc[df.Year < 2014], df.loc[df.Year >= 2014]
@@ -842,5 +865,6 @@ data_exploration()
 multivariate_analysis()
 compare_vn_world(df)
 timeseries_analysis()
+AR()
 regression_analysis()
 solution()
